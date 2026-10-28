@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DokuScan – Erkennungstest</title>
+  <style>
+    body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #111; color: #eee; }
+    table { border-collapse: collapse; margin-bottom: 20px; }
+    td, th { padding: 4px 10px; border-bottom: 1px solid #333; text-align: left; }
+    .ok { color: #34d399; } .bad { color: #ff6b6b; }
+    .cases { display: flex; flex-wrap: wrap; gap: 16px; }
+    .case { background: #1b1f25; padding: 8px; border-radius: 8px; }
+    .case canvas, .case img { height: 260px; margin-right: 6px; vertical-align: top; background: #fff; }
+    .case p { margin: 4px 0 0; }
+  </style>
+</head>
+<body>
+  <h1>Erkennungstest (synthetische Szenen)</h1>
+  <p id="status">OpenCV lädt …</p>
+  <table id="results">
+    <thead><tr><th>Szene</th><th>Erwartung</th><th>Live (400 px)</th><th>Foto + Feinmessung</th><th>Zeit live / Foto</th><th>Ergebnis</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <div class="cases" id="cases"></div>
+  <pre id="json" hidden></pre>
+  <script>
+    window.addEventListener('error', (e) => { document.getElementById('status').textContent = 'Fehler: ' + e.message; });
+    window.addEventListener('unhandledrejection', (e) => { document.getElementById('status').textContent = 'Fehler: ' + (e.reason?.stack || e.reason); });
+  </script>
+
+  <script type="module">
+    import { loadCv } from '../js/cv-loader.js';
+    import { detectQuad, findDocument } from '../js/detect.js';
+    import { renderPage } from '../js/process.js';
+    import { maxCornerShift } from '../js/geometry.js';
+
+    function rng(seed) {
+      return () => {
+        seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function squareToQuad([p0, p1, p2, p3]) {
+      const dx1 = p1.x - p2.x, dx2 = p3.x - p2.x, dx3 = p0.x - p1.x + p2.x - p3.x;
+      const dy1 = p1.y - p2.y, dy2 = p3.y - p2.y, dy3 = p0.y - p1.y + p2.y - p3.y;
+      const den = dx1 * dy2 - dx2 * dy1;
+      const a13 = (dx3 * dy2 - dx2 * dy3) / den, a23 = (dx1 * dy3 - dx3 * dy1) / den;
+      const a11 = p1.x - p0.x + a13 * p1.x, a21 = p3.x - p0.x + a23 * p3.x, a31 = p0.x;
+      const a12 = p1.y - p0.y + a13 * p1.y, a22 = p3.y - p0.y + a23 * p3.y, a32 = p0.y;
+      return (u, v) => {
+        const d = a13 * u + a23 * v + 1;
+        return { x: (a11 * u + a21 * v + a31) / d, y: (a12 * u + a22 * v + a32) / d };
+      };
+    }
+
+    function poly(ctx, pts) {
+      ctx.beginPath();
+      pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+    }
+
+    function makeScene(o) {
+      const rand = rng(o.seed ?? 1);
+      const c = document.createElement('canvas');
+      c.width = o.w; c.height = o.h;
+      const ctx = c.getContext('2d');
+
+      ctx.fillStyle = o.table;
+      ctx.fillRect(0, 0, o.w, o.h);
+      if (o.wood) {
+        for (let i = 0; i < 260; i++) {
+          const y = rand() * o.h, hgt = 2 + rand() * 18, shade = rand() * 50 - 25;
+          ctx.fillStyle = `rgba(${shade > 0 ? '255,230,200' : '40,20,0'},${Math.abs(shade) / 160})`;
+          ctx.fillRect(0, y, o.w, hgt);
+        }
+      }
+      if (o.clutterBehind) o.clutterBehind(ctx);
+
+      const q = o.quad;
+      const map = squareToQuad(q);
+      if (o.shadow !== false) {
+        ctx.save();
+        ctx.shadowColor = 'rgba(0,0,0,0.35)';
+        ctx.shadowBlur = 30; ctx.shadowOffsetX = 8; ctx.shadowOffsetY = 14;
+        ctx.fillStyle = o.paper; poly(ctx, q); ctx.fill();
+        ctx.restore();
+      }
+      const grad = ctx.createLinearGradient(q[0].x, q[0].y, q[2].x, q[2].y);
+      grad.addColorStop(0, o.paper);
+      grad.addColorStop(1, o.paperDark ?? o.paper);
+      ctx.fillStyle = grad; poly(ctx, q); ctx.fill();
+
+      ctx.fillStyle = '#333';
+      if (o.header) {
+        ctx.fillStyle = '#1d3f8f';
+        poly(ctx, [map(0.06, 0.04), map(0.94, 0.04), map(0.94, 0.12), map(0.06, 0.12)]); ctx.fill();
+        ctx.fillStyle = '#333';
+      }
+      for (let r = 0; r < 34; r++) {
+        const v = 0.16 + r * 0.023;
+        if (v > 0.93) break;
+        const u1 = 0.08 + 0.84 * (r % 5 === 4 ? 0.55 : 0.9 + rand() * 0.1);
+        poly(ctx, [map(0.08, v), map(u1, v), map(u1, v + 0.009), map(0.08, v + 0.009)]); ctx.fill();
+      }
+      if (o.clutterFront) o.clutterFront(ctx);
+
+      const img = ctx.getImageData(0, 0, o.w, o.h);
+      const n = o.noise ?? 8;
+      for (let i = 0; i < img.data.length; i += 4) {
+        const d = (rand() - 0.5) * n;
+        img.data[i] += d; img.data[i + 1] += d; img.data[i + 2] += d;
+      }
+      ctx.putImageData(img, 0, 0);
+
+      const out = document.createElement('canvas');
+      out.width = o.w; out.height = o.h;
+      const octx = out.getContext('2d');
+      octx.filter = `blur(${o.blur ?? 0.8}px)`;
+      octx.drawImage(c, 0, 0);
+      return out;
+    }
+
+    function insideDistance(p, q) {
+      return Math.min(...q.map((a, i) => {
+        const b = q[(i + 1) % 4], len = Math.hypot(b.x - a.x, b.y - a.y);
+        return ((p.x - a.x) * -(b.y - a.y) + (p.y - a.y) * (b.x - a.x)) / len;
+      }));
+    }
+
+    const P = (x, y) => ({ x, y });
+    const W = 1080, H = 1920;
+    const pen = (ctx) => { ctx.save(); ctx.translate(700, 1420); ctx.rotate(-0.5); ctx.fillStyle = '#123'; ctx.fillRect(-20, -12, 420, 24); ctx.restore(); };
+    const mug = (ctx) => { ctx.fillStyle = '#c33'; ctx.beginPath(); ctx.arc(950, 300, 150, 0, 7); ctx.fill(); };
+
+    const scenes = [
+      { name: 'Holztisch, leichte Perspektive', w: W, h: H, table: '#6b4a2b', wood: true, paper: '#f7f5f0', quad: [P(180, 330), P(910, 360), P(960, 1560), P(120, 1530)] },
+      { name: 'Hellgrauer Tisch (wenig Kontrast)', w: W, h: H, table: '#bdbdbd', paper: '#f2f2f2', quad: [P(150, 300), P(930, 290), P(950, 1600), P(140, 1620)] },
+      { name: 'Blauer Tisch, 20° gedreht', w: W, h: H, table: '#2d5a9e', paper: '#fafafa', quad: [P(380, 260), P(1000, 480), P(640, 1620), P(30, 1390)] },
+      { name: 'Weiß auf Weiß (sehr schwer)', w: W, h: H, table: '#e3e3e3', paper: '#fbfbfb', shadow: false, quad: [P(150, 300), P(930, 300), P(930, 1600), P(150, 1600)] },
+      { name: 'Starke Perspektive', w: W, h: H, table: '#5a4632', wood: true, paper: '#f5f3ee', paperDark: '#d9d6cf', quad: [P(300, 420), P(780, 420), P(1020, 1700), P(60, 1700)] },
+      { name: 'Stift ragt übers Blatt, Tasse daneben', w: W, h: H, table: '#4b3a2a', wood: true, paper: '#f7f7f2', clutterBehind: mug, clutterFront: pen, quad: [P(160, 380), P(900, 400), P(920, 1560), P(140, 1540)] },
+      { name: 'Dunkler Kopfbalken am Rand', w: W, h: H, table: '#777', paper: '#fafafa', header: true, quad: [P(170, 330), P(920, 330), P(930, 1580), P(160, 1590)] },
+      { name: 'Blatt ragt aus dem Bild', w: W, h: H, table: '#4b3a2a', wood: true, paper: '#f7f7f2', expectNone: true, quad: [P(-120, 300), P(800, 280), P(820, 1500), P(-100, 1520)] },
+      { name: 'Kein Blatt', w: W, h: H, table: '#6b4a2b', wood: true, paper: '#6b4a2b', shadow: false, expectNone: true, quad: [P(0, 0), P(1, 0), P(1, 1), P(0, 1)] },
+      { name: 'Foto 3024×4032, Holz', w: 3024, h: 4032, table: '#6b4a2b', wood: true, paper: '#f7f5f0', blur: 1.6, quad: [P(420, 600), P(2620, 700), P(2700, 3500), P(330, 3420)] },
+    ];
+
+    const cv = await loadCv('../vendor/opencv.js');
+    document.getElementById('status').textContent = 'Läuft …';
+    await new Promise((r) => setTimeout(r, 50));
+
+    const tbody = document.querySelector('#results tbody');
+    let passed = 0;
+    const summary = [];
+    for (const sc of scenes) {
+      document.getElementById('status').textContent = 'Läuft: ' + sc.name;
+      const scene = makeScene(sc);
+      let t0 = performance.now();
+      const live = detectQuad(cv, scene, sc.w, sc.h, { maxSide: 400 });
+      const tLive = performance.now() - t0;
+      t0 = performance.now();
+      const refined = findDocument(cv, scene, live?.quad ?? null);
+      const tPhoto = performance.now() - t0;
+
+      const errLive = live ? maxCornerShift(live.quad, sc.quad) : null;
+      const errRef = refined ? maxCornerShift(refined, sc.quad) : null;
+      // Kleinster Abstand einer gefundenen Ecke zum Blattrand (positiv = innerhalb, also kein Tisch im Bild)
+      const margin = refined ? Math.min(...refined.map((p) => insideDistance(p, sc.quad))) : null;
+      const tol = Math.max(sc.w, sc.h) * 0.0025;  // ~5 px bei 1920
+      const ok = sc.expectNone ? !refined : errRef !== null && errRef <= tol && margin >= -0.5;
+      if (ok) passed++;
+      const fmt = (e) => (e === null ? '–' : e.toFixed(1) + ' px');
+      summary.push({ name: sc.name, live: errLive, refined: errRef, margin, tol, ok, tLive: Math.round(tLive), tPhoto: Math.round(tPhoto) });
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${sc.name}</td><td>${sc.expectNone ? 'nichts' : 'Blatt'}</td><td>${fmt(errLive)}</td><td>${fmt(errRef)} (Rand ${fmt(margin)})</td>` +
+        `<td>${tLive.toFixed(0)} / ${tPhoto.toFixed(0)} ms</td><td class="${ok ? 'ok' : 'bad'}">${ok ? 'OK' : 'FEHLER'}</td>`;
+      tbody.appendChild(tr);
+
+      const box = document.createElement('div');
+      box.className = 'case';
+      const view = document.createElement('canvas');
+      view.width = sc.w; view.height = sc.h;
+      const vctx = view.getContext('2d');
+      vctx.drawImage(scene, 0, 0);
+      vctx.lineWidth = Math.max(sc.w, sc.h) / 400;
+      vctx.strokeStyle = 'red'; poly(vctx, sc.quad); vctx.stroke();
+      if (refined) { vctx.strokeStyle = '#00e676'; poly(vctx, refined); vctx.stroke(); }
+      box.appendChild(view);
+      if (refined) {
+        const page = await renderPage(cv, scene, refined, 'enhanced');
+        const img = new Image();
+        img.src = URL.createObjectURL(page.blob);
+        box.appendChild(img);
+      }
+      const p = document.createElement('p');
+      p.textContent = sc.name;
+      box.appendChild(p);
+      document.getElementById('cases').appendChild(box);
+    }
+    document.getElementById('status').textContent = `${passed} von ${scenes.length} Szenen bestanden.`;
+    window.testSummary = summary;
+    document.getElementById('json').textContent = JSON.stringify(summary);
+  </script>
+</body>
+</html>

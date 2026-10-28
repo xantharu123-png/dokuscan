@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>DokuScan</title>
+  <meta name="description" content="Dokumente mit der Kamera scannen und als PDF speichern.">
+  <meta name="theme-color" content="#0b0d10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DokuScan">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="vendor/jspdf.umd.min.js" defer></script>
+  <script type="module" src="js/app.js" onerror="document.getElementById('loading-text').textContent = 'Die App konnte nicht vollständig geladen werden. Bitte Internetverbindung prüfen und neu laden.'"></script>
+</head>
+<body>
+  <!-- Startbildschirm, solange OpenCV lädt -->
+  <section id="view-loading" class="view view-loading is-active">
+    <div class="loading-box">
+      <img src="icons/icon-192.png" alt="" class="loading-logo" width="88" height="88">
+      <h1>DokuScan</h1>
+      <p id="loading-text">Bilderkennung wird geladen …</p>
+      <div class="spinner"></div>
+    </div>
+  </section>
+
+  <!-- Kamera mit Live-Erkennung -->
+  <section id="view-camera" class="view view-camera">
+    <div id="stage" class="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="overlay"></canvas>
+      <div id="flash" class="flash"></div>
+    </div>
+
+    <div class="cam-top">
+      <button id="btn-auto" class="pill is-on" aria-pressed="true">Auto</button>
+      <p id="hint" class="hint">Dokument ins Bild halten</p>
+      <label class="icon-btn" for="file-input" aria-label="Foto importieren">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      </label>
+      <input id="file-input" type="file" accept="image/*" multiple hidden>
+    </div>
+
+    <div id="cam-error" class="cam-error" hidden>
+      <p id="cam-error-text"></p>
+      <button id="btn-retry" class="btn btn-primary">Erneut versuchen</button>
+      <label class="btn" for="file-input">Foto auswählen</label>
+    </div>
+
+    <div class="cam-bottom">
+      <button id="btn-pages" class="thumb-btn" aria-label="Seiten ansehen" disabled>
+        <img id="last-thumb" alt="">
+        <span id="page-count" class="badge" hidden>0</span>
+      </button>
+      <button id="btn-shutter" class="shutter" aria-label="Seite aufnehmen"><span></span></button>
+      <button id="btn-done" class="text-btn" disabled>Fertig</button>
+    </div>
+  </section>
+
+  <!-- Seitenübersicht -->
+  <section id="view-review" class="view view-review">
+    <header class="bar">
+      <button id="btn-back" class="text-btn bar-left">‹ Kamera</button>
+      <h2 id="review-title">Seiten</h2>
+      <span class="bar-right"></span>
+    </header>
+    <div class="filter-bar" role="group" aria-label="Darstellung">
+      <button data-filter="original">Original</button>
+      <button data-filter="enhanced">Verbessert</button>
+      <button data-filter="gray">Graustufen</button>
+      <button data-filter="bw">S/W</button>
+    </div>
+    <div id="pages-grid" class="pages-grid"></div>
+    <footer class="review-footer">
+      <input id="file-name" class="name-input" type="text" autocomplete="off" spellcheck="false" aria-label="Dateiname">
+      <button id="btn-make-pdf" class="btn btn-primary">PDF erstellen</button>
+    </footer>
+  </section>
+
+  <!-- Ecken-Editor -->
+  <section id="editor" class="editor" hidden>
+    <header class="bar">
+      <button id="ed-cancel" class="text-btn bar-left">Abbrechen</button>
+      <h2>Ecken anpassen</h2>
+      <button id="ed-done" class="text-btn bar-right strong">Fertig</button>
+    </header>
+    <div id="ed-stage" class="ed-stage"><canvas id="ed-canvas"></canvas></div>
+    <div class="ed-tools">
+      <button id="ed-auto" class="pill">Automatisch</button>
+      <button id="ed-full" class="pill">Ganzes Bild</button>
+    </div>
+  </section>
+
+  <!-- Export -->
+  <div id="export-sheet" class="sheet" hidden>
+    <div class="sheet-card">
+      <h3>PDF ist fertig</h3>
+      <p id="export-info"></p>
+      <button id="btn-share" class="btn btn-primary">Teilen / In Dateien sichern</button>
+      <a id="btn-download" class="btn" download>Herunterladen</a>
+      <button id="btn-new" class="btn btn-ghost">Neuen Scan beginnen</button>
+      <button id="btn-sheet-close" class="btn btn-ghost">Schließen</button>
+    </div>
+  </div>
+
+  <div id="busy" class="busy" hidden>
+    <div class="spinner"></div>
+    <p id="busy-text">Bitte warten …</p>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+</body>
+</html>
