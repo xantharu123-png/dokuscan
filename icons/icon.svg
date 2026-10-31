@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4F98FF"/>
+      <stop offset="1" stop-color="#1C4FD1"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#g)"/>
+  <path transform="translate(0 20)" fill="#0B2A7A" fill-opacity=".3" d="M352 252 H598 L702 356 V742 Q702 772 672 772 H352 Q322 772 322 742 V282 Q322 252 352 252 Z"/>
+  <path fill="#FFFFFF" d="M352 252 H598 L702 356 V742 Q702 772 672 772 H352 Q322 772 322 742 V282 Q322 252 352 252 Z"/>
+  <path fill="#D3E0F7" d="M598 252 V326 Q598 356 628 356 H702 Z"/>
+  <g fill="#B5C6E6">
+    <rect x="382" y="420" width="260" height="30" rx="15"/>
+    <rect x="382" y="488" width="260" height="30" rx="15"/>
+    <rect x="382" y="556" width="260" height="30" rx="15"/>
+    <rect x="382" y="624" width="160" height="30" rx="15"/>
+  </g>
+  <g fill="none" stroke="#3EE0A1" stroke-width="44" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M222 262 V196 Q222 152 266 152 H332"/>
+    <path d="M692 152 H758 Q802 152 802 196 V262"/>
+    <path d="M802 762 V828 Q802 872 758 872 H692"/>
+    <path d="M332 872 H266 Q222 872 222 828 V762"/>
+  </g>
+</svg>

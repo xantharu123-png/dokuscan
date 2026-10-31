@@ -82,6 +82,7 @@ Danach `http://localhost:8765` im Browser öffnen. Am PC wird dabei die Webcam g
 | `js/pdf.js` | PDF-Erstellung und Teilen |
 | `js/geometry.js` | Rechenhilfen für Vierecke |
 | `sw.js`, `manifest.webmanifest` | Offline-Betrieb und Home-Bildschirm-App |
+| `icons/` | App-Symbol: Vorlage `icon.svg`, daraus erzeugt mit `node tools/make-icons.mjs` die PNGs |
 | `vendor/` | OpenCV.js 4.10 (Bilderkennung) und jsPDF 4.2 (PDF), jeweils mit Lizenz |
 | `tools/` | Icon-Erzeugung, lokaler Testserver |
 | `test/` | Erkennungstest |
