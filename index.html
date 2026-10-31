@@ -66,7 +66,7 @@
     <header class="bar">
       <button id="btn-back" class="text-btn bar-left">‹ Kamera</button>
       <h2 id="review-title">Seiten</h2>
-      <span class="bar-right"></span>
+      <button id="btn-signature" class="text-btn bar-right strong">Unterschrift</button>
     </header>
     <div class="filter-bar" role="group" aria-label="Darstellung">
       <button data-filter="original">Original</button>
@@ -85,7 +85,7 @@
   <section id="editor" class="editor" hidden>
     <header class="bar">
       <button id="ed-cancel" class="text-btn bar-left">Abbrechen</button>
-      <h2>Ecken anpassen</h2>
+      <h2 id="ed-title">Ecken anpassen</h2>
       <button id="ed-done" class="text-btn bar-right strong">Fertig</button>
     </header>
     <div id="ed-stage" class="ed-stage"><canvas id="ed-canvas"></canvas></div>
@@ -94,6 +94,59 @@
       <button id="ed-full" class="pill">Ganzes Bild</button>
     </div>
   </section>
+
+  <!-- Unterschrift mit dem Finger zeichnen -->
+  <section id="sig-pad" class="editor" hidden>
+    <header class="bar">
+      <button id="pad-cancel" class="text-btn bar-left">Abbrechen</button>
+      <h2>Unterschreiben</h2>
+      <button id="pad-done" class="text-btn bar-right strong">Fertig</button>
+    </header>
+    <div class="pad-stage">
+      <div class="pad-sheet"><canvas id="pad-canvas"></canvas><div class="pad-line" aria-hidden="true"></div></div>
+    </div>
+    <div class="ed-tools">
+      <button id="pad-clear" class="pill">Neu beginnen</button>
+    </div>
+  </section>
+
+  <!-- Unterschrift auf einer Seite platzieren -->
+  <section id="sig-place" class="editor" hidden>
+    <header class="bar">
+      <button id="sp-cancel" class="text-btn bar-left">Abbrechen</button>
+      <h2>Platzieren</h2>
+      <button id="sp-done" class="text-btn bar-right strong">Fertig</button>
+    </header>
+    <div id="sp-stage" class="ed-stage">
+      <img id="sp-page" alt="">
+      <div id="sp-box" class="sig-box"><img id="sp-sig" alt="Unterschrift"><span class="sig-handle" aria-label="Größe ändern"></span></div>
+    </div>
+    <div class="ed-tools">
+      <p class="ed-hint">Ziehen zum Verschieben, blauen Punkt ziehen für die Größe</p>
+      <button id="sp-remove" class="pill">Entfernen</button>
+    </div>
+  </section>
+
+  <!-- Unterschrift verwalten -->
+  <div id="signature-sheet" class="sheet" hidden>
+    <div class="sheet-card">
+      <h3>Deine Unterschrift</h3>
+      <p>Lade ein Foto deiner Unterschrift hoch (am besten auf weißem Papier) oder zeichne sie mit dem Finger. Sie wird nur auf diesem iPhone gespeichert.</p>
+      <div class="sig-preview">
+        <img id="sig-preview-img" alt="Gespeicherte Unterschrift" hidden>
+        <span id="sig-empty">Noch keine Unterschrift gespeichert</span>
+      </div>
+      <div class="ink-row" role="group" aria-label="Tintenfarbe">
+        <button data-ink="blau"><span class="ink-dot ink-blau"></span>Blau</button>
+        <button data-ink="schwarz"><span class="ink-dot ink-schwarz"></span>Schwarz</button>
+      </div>
+      <label class="btn btn-primary" for="sig-file">Foto hochladen</label>
+      <input id="sig-file" type="file" accept="image/*" hidden>
+      <button id="sig-draw" class="btn">Mit dem Finger zeichnen</button>
+      <button id="sig-delete" class="btn btn-ghost">Unterschrift löschen</button>
+      <button id="sig-close" class="btn btn-ghost">Schließen</button>
+    </div>
+  </div>
 
   <!-- Export -->
   <div id="export-sheet" class="sheet" hidden>

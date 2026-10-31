@@ -22,7 +22,35 @@ export function outputSize(quad) {
 }
 
 /** Schneidet das Blatt aus, entzerrt es, wendet Filter und Drehung an. Liefert { blob, width, height }. */
-export async function renderPage(cv, source, quad, filter, rotation = 0) {
+/**
+ * Schneidet das Blatt aus, entzerrt es, wendet Filter und Drehung an. Liefert { blob, width, height }.
+ * `overlays` sind Einblendungen wie die Unterschrift: { image, cx, cy, w, angle } – Mitte und Breite
+ * als Anteil der ungedrehten Seite, Winkel in Grad. Sie werden nach dem Filter eingefügt und drehen
+ * mit der Seite mit.
+ */
+export async function renderPage(cv, source, quad, filter, rotation = 0, overlays = []) {
+  const rgb = warp(cv, source, quad);
+  const result = applyFilter(cv, rgb, filter);
+  rgb.delete();
+
+  const canvas = matToCanvas(cv, result, rotation, overlays);
+  result.delete();
+  const blob = await canvasToBlob(canvas, 'image/jpeg', JPEG_QUALITY);
+  const out = { blob, width: canvas.width, height: canvas.height };
+  releaseCanvas(canvas);
+  return out;
+}
+
+/** Schneidet das Viereck aus und entzerrt es, ohne Filter – als Canvas (z. B. für den Unterschrift-Ausschnitt). */
+export function warpToCanvas(cv, source, quad) {
+  const rgb = warp(cv, source, quad);
+  const canvas = document.createElement('canvas');
+  cv.imshow(canvas, rgb);
+  rgb.delete();
+  return canvas;
+}
+
+function warp(cv, source, quad) {
   const { w, h } = outputSize(quad);
   const src = cv.imread(source);
   const from = cv.matFromArray(4, 1, cv.CV_32FC2, quad.flatMap((p) => [p.x, p.y]));
@@ -35,15 +63,7 @@ export async function renderPage(cv, source, quad, filter, rotation = 0) {
   const rgb = new cv.Mat();
   cv.cvtColor(warped, rgb, cv.COLOR_RGBA2RGB);
   warped.delete();
-  const result = applyFilter(cv, rgb, filter);
-  rgb.delete();
-
-  const canvas = matToCanvas(cv, result, rotation);
-  result.delete();
-  const blob = await canvasToBlob(canvas, 'image/jpeg', JPEG_QUALITY);
-  const out = { blob, width: canvas.width, height: canvas.height };
-  releaseCanvas(canvas);
-  return out;
+  return rgb;
 }
 
 function applyFilter(cv, rgb, filter) {
@@ -93,9 +113,10 @@ function evenOutLighting(cv, rgb) {
   return out;
 }
 
-function matToCanvas(cv, mat, rotation) {
+function matToCanvas(cv, mat, rotation, overlays) {
   const flat = document.createElement('canvas');
   cv.imshow(flat, mat);
+  drawOverlays(flat, overlays);
   if (!rotation) return flat;
 
   const turned = document.createElement('canvas');
@@ -108,6 +129,18 @@ function matToCanvas(cv, mat, rotation) {
   ctx.drawImage(flat, -flat.width / 2, -flat.height / 2);
   releaseCanvas(flat);
   return turned;
+}
+
+function drawOverlays(canvas, overlays) {
+  const ctx = canvas.getContext('2d');
+  for (const o of overlays) {
+    const w = o.w * canvas.width, h = (w * o.image.height) / o.image.width;
+    ctx.save();
+    ctx.translate(o.cx * canvas.width, o.cy * canvas.height);
+    ctx.rotate((o.angle * Math.PI) / 180);
+    ctx.drawImage(o.image, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
 }
 
 export function canvasToBlob(canvas, type, quality) {

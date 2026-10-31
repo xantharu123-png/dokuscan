@@ -3,10 +3,12 @@
 import { loadCv } from './cv-loader.js';
 import { Camera, QuadTracker } from './camera.js';
 import { detectQuad, findDocument, autoCorners } from './detect.js';
-import { renderPage, canvasToBlob, releaseCanvas, loadImageCanvas } from './process.js';
+import { renderPage, warpToCanvas, canvasToBlob, releaseCanvas, loadImageCanvas } from './process.js';
 import { defaultQuad } from './geometry.js';
 import { openEditor } from './editor.js';
 import { buildPdf, canShareFile, shareFile } from './pdf.js';
+import { INKS, loadSignature, saveSignature, deleteSignature, recolor, extractSignature, openSignaturePad } from './signature.js';
+import { openPlacement, toPageFrame, toViewFrame } from './placement.js';
 
 const $ = (id) => document.getElementById(id);
 const DETECT_INTERVAL = 100; // ms zwischen zwei Erkennungen im Livebild
@@ -20,12 +22,17 @@ const ICONS = {
   crop: ICON('<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>'),
   rotate: ICON('<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>'),
   delete: ICON('<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/>'),
+  sign: ICON('<path d="M3 21c3-1 4-4 6-4s1 3 3 3 3-3 5-3"/><path d="M14.5 4.5l5 5L11 18H6v-5z"/>'),
 };
 
 const state = {
-  pages: [],   // { id, source: Blob, quad, rotation, result: { blob, url, width, height } }
+  // Seite: { id, source: Blob, quad, rotation, signature: { image, cx, cy, w, angle } | null,
+  //          result: { blob, url, width, height } }
+  pages: [],
   filter: readPref('filter', 'enhanced'),
   auto: readPref('auto', 'true') === 'true',
+  ink: readPref('ink', 'blau'),
+  signature: null, // gespeicherte Unterschrift (Canvas)
   view: 'loading',
 };
 
@@ -242,7 +249,7 @@ async function addPage(canvas, hint) {
       return null;
     }
   }
-  const page = { id: nextId++, quad, rotation: 0, source: null, result: null };
+  const page = { id: nextId++, quad, rotation: 0, source: null, signature: null, result: null };
   page.source = await canvasToBlob(canvas, 'image/jpeg', SOURCE_QUALITY);
   await renderInto(page, canvas);
   releaseCanvas(canvas);
@@ -261,7 +268,8 @@ function autoDetect(canvas, corners) {
 async function renderInto(page, sourceCanvas = null) {
   const canvas = sourceCanvas ?? (await loadImageCanvas(page.source));
   try {
-    const result = await renderPage(cv, canvas, page.quad, state.filter, page.rotation);
+    const overlays = page.signature ? [page.signature] : [];
+    const result = await renderPage(cv, canvas, page.quad, state.filter, page.rotation, overlays);
     if (page.result) URL.revokeObjectURL(page.result.url);
     page.result = { ...result, url: URL.createObjectURL(result.blob) };
   } finally {
@@ -319,16 +327,146 @@ function pageCard(page, i, n) {
   fig.className = 'page-card';
   fig.dataset.id = String(page.id);
   fig.innerHTML = `
-    <button class="page-thumb" data-act="crop" aria-label="Seite ${i + 1} zuschneiden"><img alt="" src="${page.result.url}"></button>
-    <span class="page-no">${i + 1}</span>
+    <div class="page-top">
+      <button class="page-thumb" data-act="crop" aria-label="Seite ${i + 1} zuschneiden"><img alt="" src="${page.result.url}"></button>
+      <span class="page-no">${i + 1}</span>
+      <button class="page-move left" data-act="left" aria-label="Nach vorne" ${i === 0 ? 'disabled' : ''}>${ICONS.left}</button>
+      <button class="page-move right" data-act="right" aria-label="Nach hinten" ${i === n - 1 ? 'disabled' : ''}>${ICONS.right}</button>
+    </div>
     <div class="page-actions">
-      <button data-act="left" aria-label="Nach vorne" ${i === 0 ? 'disabled' : ''}>${ICONS.left}</button>
       <button data-act="crop" aria-label="Zuschneiden">${ICONS.crop}</button>
+      <button data-act="sign" aria-label="Unterschreiben">${ICONS.sign}</button>
       <button data-act="rotate" aria-label="Drehen">${ICONS.rotate}</button>
       <button data-act="delete" aria-label="Löschen">${ICONS.delete}</button>
-      <button data-act="right" aria-label="Nach hinten" ${i === n - 1 ? 'disabled' : ''}>${ICONS.right}</button>
     </div>`;
   return fig;
+}
+
+// ---------- Unterschrift ----------
+
+/**
+ * Verwaltung der gespeicherten Unterschrift (hochladen, zeichnen, Farbe, löschen).
+ * Mit `forSigning` schließt sie, sobald eine Unterschrift vorliegt. Liefert die aktuelle Unterschrift.
+ */
+function manageSignature(forSigning = false) {
+  const sheet = $('signature-sheet');
+  return new Promise((resolve) => {
+    const refresh = () => {
+      const has = !!state.signature;
+      $('sig-preview-img').hidden = !has;
+      $('sig-empty').hidden = has;
+      if (has) $('sig-preview-img').src = state.signature.toDataURL('image/png');
+      $('sig-delete').hidden = !has;
+      for (const b of sheet.querySelectorAll('[data-ink]')) b.setAttribute('aria-pressed', String(b.dataset.ink === state.ink));
+    };
+    const close = () => {
+      sheet.hidden = true;
+      resolve(state.signature);
+    };
+    const adopt = (canvas) => {
+      if (canvas) {
+        state.signature = canvas;
+        if (!saveSignature(canvas)) toast('Die Unterschrift konnte nicht dauerhaft gespeichert werden.');
+        refresh();
+        if (forSigning) return close();
+      }
+      sheet.hidden = false;
+    };
+
+    $('sig-file').onchange = async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      sheet.hidden = true;
+      adopt(await signatureFromPhoto(file));
+    };
+    $('sig-draw').onclick = async () => {
+      sheet.hidden = true;
+      adopt(await openSignaturePad(INKS[state.ink]));
+    };
+    $('sig-delete').onclick = () => {
+      if (!confirm('Gespeicherte Unterschrift löschen?')) return;
+      deleteSignature();
+      state.signature = null;
+      refresh();
+    };
+    for (const b of sheet.querySelectorAll('[data-ink]')) {
+      b.onclick = () => {
+        state.ink = b.dataset.ink;
+        writePref('ink', state.ink);
+        if (state.signature) {
+          state.signature = recolor(state.signature, INKS[state.ink]);
+          saveSignature(state.signature);
+        }
+        refresh();
+      };
+    }
+    $('sig-close').onclick = close;
+
+    refresh();
+    sheet.hidden = false;
+  });
+}
+
+/** Foto → Bereich wählen → Unterschrift freistellen. */
+async function signatureFromPhoto(file) {
+  await busy('Foto wird geladen …');
+  let canvas;
+  try {
+    canvas = await loadImageCanvas(file);
+  } catch {
+    hideBusy();
+    toast('Das Foto konnte nicht gelesen werden.');
+    return null;
+  }
+  hideBusy();
+  try {
+    const quad = await openEditor({ image: canvas, quad: defaultQuad(canvas.width, canvas.height, 0.05), title: 'Unterschrift auswählen' });
+    if (!quad) return null;
+    await busy('Unterschrift wird freigestellt …');
+    const flat = warpToCanvas(cv, canvas, quad);
+    const signature = extractSignature(cv, flat, INKS[state.ink]);
+    releaseCanvas(flat);
+    if (!signature) toast('Keine Unterschrift erkannt – wähle den Bereich enger oder nutze ein helleres Foto.');
+    return signature;
+  } finally {
+    hideBusy();
+    releaseCanvas(canvas);
+  }
+}
+
+/** Unterschrift auf einer Seite platzieren, verschieben oder entfernen. */
+async function signPage(page) {
+  const existing = page.signature;
+  const signature = existing?.image ?? state.signature ?? (await manageSignature(true));
+  if (!signature) return;
+
+  // Seitenbild ohne Unterschrift als Hintergrund für den Editor
+  await busy('Seite wird vorbereitet …');
+  let plain;
+  try {
+    const source = await loadImageCanvas(page.source);
+    plain = await renderPage(cv, source, page.quad, state.filter, page.rotation);
+    releaseCanvas(source);
+  } finally {
+    hideBusy();
+  }
+  const { width, height } = plain;
+  const url = URL.createObjectURL(plain.blob);
+  const start = existing ? toViewFrame(existing, page.rotation, width, height) : { u: 0.7, v: 0.85, fw: 0.32 };
+  const result = await openPlacement({ pageUrl: url, signature, placement: start, canRemove: !!existing });
+  URL.revokeObjectURL(url);
+  if (!result) return;
+
+  page.signature = result === 'remove' ? null : { image: signature, ...toPageFrame(result, page.rotation, width, height) };
+  await busy('Unterschrift wird eingefügt …');
+  try {
+    await renderInto(page);
+  } finally {
+    hideBusy();
+  }
+  renderReview();
+  updateCameraBar();
 }
 
 async function onPageAction(e) {
@@ -361,6 +499,8 @@ async function onPageAction(e) {
     updateCameraBar();
   } else if (act === 'crop') {
     await editPage(page);
+  } else if (act === 'sign') {
+    await signPage(page);
   }
 }
 
@@ -506,6 +646,7 @@ function bindEvents() {
     if (confirm('Alle Seiten verwerfen und neu beginnen?')) startNewScan();
   });
   $('btn-sheet-close').addEventListener('click', () => { $('export-sheet').hidden = true; });
+  $('btn-signature').addEventListener('click', () => manageSignature());
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -523,6 +664,7 @@ async function init() {
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+  loadSignature().then((s) => { state.signature = s; });
   try {
     cv = await loadCv();
   } catch (err) {

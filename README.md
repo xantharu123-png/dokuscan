@@ -12,6 +12,7 @@ Alles läuft direkt auf dem iPhone. Es werden keine Bilder hochgeladen. Nach dem
 - **Perspektivkorrektur:** Schräg fotografierte Blätter werden gerade gerückt. Nahezu DIN-A-förmige Blätter bekommen genau das A4-Format.
 - **Filter:** Original, Verbessert (Schatten weg, Papier weiß), Graustufen, Schwarz-Weiß.
 - **Mehrere Seiten:** Reihenfolge ändern, drehen, löschen, Ecken von Hand nachziehen (mit Lupe).
+- **Unterschrift:** Einmal als Foto hochladen oder mit dem Finger zeichnen, sie bleibt auf dem iPhone gespeichert. Danach lässt sie sich auf jeder Seite platzieren.
 - **PDF:** Teilen-Menü von iOS: in „Dateien“ sichern, per Mail senden, AirDrop …
 - **Foto importieren:** vorhandene Bilder aus der Mediathek oder ein Foto mit der vollen Kamera-Auflösung.
 
@@ -46,6 +47,15 @@ Safari erlaubt den Kamerazugriff nur über eine **https://**-Adresse. Die App mu
 3. **Fertig** tippen, um die Seiten zu prüfen: Filter wählen, Seiten sortieren, drehen oder über ✂︎ die Ecken korrigieren.
 4. Dateinamen eingeben, **PDF erstellen** tippen und dann **Teilen / In Dateien sichern**.
 
+### Unterschrift einfügen
+
+1. In der Seitenübersicht oben rechts auf **Unterschrift** tippen.
+2. **Foto hochladen:** Unterschrift auf ein weißes Blatt setzen, fotografieren, den Bereich um die Unterschrift wählen und auf „Fertig“ tippen. Das Papier wird automatisch entfernt, nur die Tinte bleibt. Alternativ: **Mit dem Finger zeichnen**.
+3. Farbe wählen (Blau oder Schwarz). Die Unterschrift wird nur auf diesem iPhone gespeichert und nirgends hochgeladen.
+4. Auf einer Seite das Stift-Symbol antippen, die Unterschrift an die richtige Stelle ziehen und über den blauen Punkt die Größe anpassen. Dann „Fertig“ tippen.
+
+Über dasselbe Symbol lässt sich die Unterschrift später verschieben oder wieder entfernen. Wird die Seite gedreht, dreht die Unterschrift mit.
+
 Wird kein Dokument erkannt (z. B. bei manueller Aufnahme), öffnet sich der Ecken-Editor. Dort kann man die vier Ecken von Hand setzen. Zieht man an einem Punkt in der Mitte einer Seite, verschiebt sich die ganze Kante.
 
 ## Tipps für gute Scans
@@ -79,6 +89,8 @@ Danach `http://localhost:8765` im Browser öffnen. Am PC wird dabei die Webcam g
 | `js/detect.js` | Dokumenterkennung und genaue Kantenmessung |
 | `js/process.js` | Entzerren, Filter, Drehen |
 | `js/editor.js` | Ecken-Editor mit Lupe |
+| `js/signature.js` | Unterschrift speichern, aus Foto freistellen, mit dem Finger zeichnen |
+| `js/placement.js` | Unterschrift auf einer Seite platzieren |
 | `js/pdf.js` | PDF-Erstellung und Teilen |
 | `js/geometry.js` | Rechenhilfen für Vierecke |
 | `sw.js`, `manifest.webmanifest` | Offline-Betrieb und Home-Bildschirm-App |

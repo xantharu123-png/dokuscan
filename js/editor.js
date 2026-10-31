@@ -12,10 +12,11 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 /**
  * Öffnet den Editor für `image` (Canvas) mit Startviereck `quad`.
- * `onAuto(corners)` liefert ein automatisch erkanntes Viereck (ausgehend von den aktuellen Ecken) oder null.
+ * `onAuto(corners)` liefert ein automatisch erkanntes Viereck (ausgehend von den aktuellen Ecken) oder null;
+ * ohne `onAuto` gibt es keinen Knopf „Automatisch“.
  * Rückgabe: Promise mit dem neuen Viereck oder null bei Abbruch.
  */
-export function openEditor({ image, quad, onAuto }) {
+export function openEditor({ image, quad, onAuto, title = 'Ecken anpassen' }) {
   const root = document.getElementById('editor');
   const stage = document.getElementById('ed-stage');
   const canvas = document.getElementById('ed-canvas');
@@ -214,13 +215,16 @@ export function openEditor({ image, quad, onAuto }) {
       corners = defaultQuad(image.width, image.height, 0);
       draw();
     };
-    document.getElementById('ed-auto').onclick = () => {
+    const autoBtn = document.getElementById('ed-auto');
+    autoBtn.hidden = !onAuto;
+    autoBtn.onclick = () => {
       const q = onAuto?.(corners);
       if (q) {
         corners = q;
         draw();
       }
     };
+    document.getElementById('ed-title').textContent = title;
 
     root.hidden = false;
     observer.observe(stage);

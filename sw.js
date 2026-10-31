@@ -1,7 +1,7 @@
 // Service Worker: hält die App offline verfügbar.
 // Große Bibliotheken kommen aus dem Cache, alles andere bevorzugt frisch aus dem Netz.
 
-const CACHE = 'dokuscan-v2';
+const CACHE = 'dokuscan-v3';
 const APP_FILES = [
   './',
   './index.html',
@@ -14,7 +14,9 @@ const APP_FILES = [
   './js/editor.js',
   './js/geometry.js',
   './js/pdf.js',
+  './js/placement.js',
   './js/process.js',
+  './js/signature.js',
   './vendor/opencv.js',
   './vendor/jspdf.umd.min.js',
   './icons/icon-192.png',
