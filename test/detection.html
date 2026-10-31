@@ -69,7 +69,14 @@
       c.width = o.w; c.height = o.h;
       const ctx = c.getContext('2d');
 
-      ctx.fillStyle = o.table;
+      if (o.tableRight) {
+        const tg = ctx.createLinearGradient(0, 0, o.w, 0);
+        tg.addColorStop(0, o.table);
+        tg.addColorStop(1, o.tableRight);
+        ctx.fillStyle = tg;
+      } else {
+        ctx.fillStyle = o.table;
+      }
       ctx.fillRect(0, 0, o.w, o.h);
       if (o.wood) {
         for (let i = 0; i < 260; i++) {
@@ -107,6 +114,20 @@
         poly(ctx, [map(0.08, v), map(u1, v), map(u1, v + 0.009), map(0.08, v + 0.009)]); ctx.fill();
       }
       if (o.clutterFront) o.clutterFront(ctx);
+      if (o.fold) {
+        ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+        ctx.lineWidth = 4;
+        const a = map(0, 0.45), b = map(1, 0.45);
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+      if (o.castShadow) {
+        // Weicher Schatten (z. B. von Hand und Handy), fällt über Tisch und Blatt
+        ctx.save();
+        ctx.filter = `blur(${o.castShadow.blur}px)`;
+        ctx.fillStyle = `rgba(0,0,0,${o.castShadow.alpha})`;
+        poly(ctx, o.castShadow.pts); ctx.fill();
+        ctx.restore();
+      }
 
       const img = ctx.getImageData(0, 0, o.w, o.h);
       const n = o.noise ?? 8;
@@ -144,11 +165,18 @@
       { name: 'Starke Perspektive', w: W, h: H, table: '#5a4632', wood: true, paper: '#f5f3ee', paperDark: '#d9d6cf', quad: [P(300, 420), P(780, 420), P(1020, 1700), P(60, 1700)] },
       { name: 'Stift ragt übers Blatt, Tasse daneben', w: W, h: H, table: '#4b3a2a', wood: true, paper: '#f7f7f2', clutterBehind: mug, clutterFront: pen, quad: [P(160, 380), P(900, 400), P(920, 1560), P(140, 1540)] },
       { name: 'Dunkler Kopfbalken am Rand', w: W, h: H, table: '#777', paper: '#fafafa', header: true, quad: [P(170, 330), P(920, 330), P(930, 1580), P(160, 1590)] },
+      // Nachbau eines echten iPhone-Fotos: weißer Tisch, rechts heller als das Papier, links Schatten
+      { name: 'Weißer Tisch + Schatten (iPhone-Foto)', w: W, h: H, table: '#9e9e9a', tableRight: '#bab9b5', paper: '#b2b2ae', paperDark: '#aaaaa6', shadow: false, fold: true, noise: 10, blur: 1.2,
+        castShadow: { pts: [P(-50, 900), P(260, 820), P(640, 1980), P(-50, 1980)], alpha: 0.42, blur: 45 },
+        quad: [P(95, 415), P(905, 390), P(1010, 1560), P(110, 1610)] },
+      { name: 'Papier etwas dunkler als Tisch', w: W, h: H, table: '#c4c4c0', paper: '#bbbbb7', shadow: false, noise: 8, quad: [P(160, 340), P(920, 330), P(940, 1580), P(150, 1600)] },
       { name: 'Blatt ragt aus dem Bild', w: W, h: H, table: '#4b3a2a', wood: true, paper: '#f7f7f2', expectNone: true, quad: [P(-120, 300), P(800, 280), P(820, 1500), P(-100, 1520)] },
       { name: 'Kein Blatt', w: W, h: H, table: '#6b4a2b', wood: true, paper: '#6b4a2b', shadow: false, expectNone: true, quad: [P(0, 0), P(1, 0), P(1, 1), P(0, 1)] },
       { name: 'Foto 3024×4032, Holz', w: 3024, h: 4032, table: '#6b4a2b', wood: true, paper: '#f7f5f0', blur: 1.6, quad: [P(420, 600), P(2620, 700), P(2700, 3500), P(330, 3420)] },
     ];
 
+    window.makeScene = makeScene; // für Diagnose-Skripte
+    window.scenes = scenes;
     const cv = await loadCv('../vendor/opencv.js');
     document.getElementById('status').textContent = 'Läuft …';
     await new Promise((r) => setTimeout(r, 50));
@@ -174,7 +202,18 @@
       const ok = sc.expectNone ? !refined : errRef !== null && errRef <= tol && margin >= -0.5;
       if (ok) passed++;
       const fmt = (e) => (e === null ? '–' : e.toFixed(1) + ' px');
-      summary.push({ name: sc.name, live: errLive, refined: errRef, margin, tol, ok, tLive: Math.round(tLive), tPhoto: Math.round(tPhoto) });
+      // Bei Fehlern: die bestbewerteten Kandidaten der Fotoerkennung zur Diagnose festhalten
+      let top = [];
+      if (!ok) {
+        const debug = [];
+        detectQuad(cv, scene, sc.w, sc.h, { maxSide: 640, thorough: true, debug });
+        top = debug.filter((c) => c.score).sort((a, b) => b.score - a.score).slice(0, 4).map((c) =>
+          `${c.from}/${c.mode} score=${c.score.toFixed(3)} fläche=${c.area.toFixed(2)} kanten=${c.support.map((s) => s.toFixed(2)).join('/')} fehler=${sc.expectNone ? '-' : maxCornerShift(c.quad, sc.quad).toFixed(0)}`);
+        const truth = debug.filter((c) => !sc.expectNone && maxCornerShift(c.quad, sc.quad) < 25).slice(0, 2).map((c) =>
+          `[nahe Wahrheit] ${c.from}/${c.mode} score=${c.score.toFixed(3)} ${c.reason ?? ''} kanten=${c.support?.map((s) => s.toFixed(2)).join('/') ?? ''}`);
+        top.push(...truth);
+      }
+      summary.push({ name: sc.name, live: errLive, refined: errRef, margin, tol, ok, tLive: Math.round(tLive), tPhoto: Math.round(tPhoto), top });
 
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${sc.name}</td><td>${sc.expectNone ? 'nichts' : 'Blatt'}</td><td>${fmt(errLive)}</td><td>${fmt(errRef)} (Rand ${fmt(margin)})</td>` +

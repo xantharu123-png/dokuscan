@@ -2,7 +2,7 @@
 
 import { loadCv } from './cv-loader.js';
 import { Camera, QuadTracker } from './camera.js';
-import { detectQuad, findDocument } from './detect.js';
+import { detectQuad, findDocument, autoCorners } from './detect.js';
 import { renderPage, canvasToBlob, releaseCanvas, loadImageCanvas } from './process.js';
 import { defaultQuad } from './geometry.js';
 import { openEditor } from './editor.js';
@@ -33,6 +33,7 @@ let cv = null;
 let nextId = 1;
 let loopId = 0;
 let lastDetect = 0;
+let detectCost = 0; // gleitender Mittelwert der Erkennungsdauer (ms)
 let capturing = false;
 let pdfFile = null;
 let pdfUrl = null;
@@ -127,11 +128,14 @@ function stopLoop() {
 
 function tick(now) {
   loopId = requestAnimationFrame(tick);
-  if (camera.ready && !capturing && now - lastDetect >= DETECT_INTERVAL) {
+  // Auf langsamen Geräten seltener erkennen, damit Bild und Bedienung flüssig bleiben.
+  if (camera.ready && !capturing && now - lastDetect >= Math.max(DETECT_INTERVAL, detectCost * 2.5)) {
     lastDetect = now;
     let found = null;
     try {
-      found = detectQuad(cv, video, camera.width, camera.height, { prev: tracker.quad });
+      const t0 = performance.now();
+      found = detectQuad(cv, video, camera.width, camera.height, { prev: tracker.quad, thorough: true });
+      detectCost = detectCost * 0.8 + (performance.now() - t0) * 0.2;
     } catch (err) {
       console.error(err);
     }
@@ -231,7 +235,7 @@ async function addPage(canvas, hint) {
     quad = await openEditor({
       image: canvas,
       quad: defaultQuad(canvas.width, canvas.height),
-      onAuto: () => autoDetect(canvas),
+      onAuto: (corners) => autoDetect(canvas, corners),
     });
     if (!quad) {
       releaseCanvas(canvas);
@@ -247,9 +251,10 @@ async function addPage(canvas, hint) {
   return page;
 }
 
-function autoDetect(canvas) {
-  const q = findDocument(cv, canvas);
-  if (!q) toast('Kein Dokument gefunden – bitte die Ecken von Hand setzen.');
+/** „Automatisch“ im Editor: Blatt nahe den aktuellen Ecken suchen oder die Ecken an die Kanten anlegen. */
+function autoDetect(canvas, corners) {
+  const q = autoCorners(cv, canvas, corners);
+  if (!q) toast('Keine Blattkante gefunden – bitte die Ecken von Hand setzen.');
   return q;
 }
 
@@ -269,7 +274,7 @@ async function editPage(page) {
   const canvas = await loadImageCanvas(page.source);
   hideBusy();
   try {
-    const quad = await openEditor({ image: canvas, quad: page.quad, onAuto: () => autoDetect(canvas) });
+    const quad = await openEditor({ image: canvas, quad: page.quad, onAuto: (corners) => autoDetect(canvas, corners) });
     if (!quad) return;
     page.quad = quad;
     await busy('Seite wird neu berechnet …');

@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DokuScan – Foto-Analyse</title>
+  <style>
+    body { font: 14px/1.4 system-ui, sans-serif; margin: 16px; background: #111; color: #eee; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    canvas, img { max-height: 640px; max-width: 100%; background: #222; }
+    table { border-collapse: collapse; margin-top: 12px; }
+    td, th { padding: 3px 8px; border-bottom: 1px solid #333; text-align: left; }
+    .ok { color: #34d399; } .bad { color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <h1>Foto-Analyse</h1>
+  <p>Foto auswählen: Die Erkennung läuft wie in der App (live mit 400 px, Foto mit 640 px plus Feinmessung).</p>
+  <input type="file" id="file" accept="image/*">
+  <p id="status">OpenCV lädt …</p>
+  <div class="row"><canvas id="view"></canvas><img id="result" alt=""></div>
+  <table id="cands"><thead><tr><th>Größe</th><th>Methode</th><th>Stufe</th><th>Score</th><th>Grund</th><th>Fläche</th><th>Kanten (o, r, u, l)</th></tr></thead><tbody></tbody></table>
+
+  <script type="module">
+    import { loadCv } from '../js/cv-loader.js';
+    import { detectQuad, findDocument } from '../js/detect.js';
+    import { renderPage, loadImageCanvas } from '../js/process.js';
+
+    const cv = await loadCv('../vendor/opencv.js');
+    const status = document.getElementById('status');
+    status.textContent = 'Bereit.';
+
+    function poly(ctx, q, color, width) {
+      ctx.beginPath();
+      q.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+
+    /** Analysiert ein Canvas und gibt die Ergebnisse zurück (auch für automatisierte Tests). */
+    window.analyze = async (canvas) => {
+      const W = canvas.width, H = canvas.height;
+      const debugLive = [], debugPhoto = [];
+      const live = detectQuad(cv, canvas, W, H, { maxSide: 400, debug: debugLive });
+      const photo = detectQuad(cv, canvas, W, H, { maxSide: 640, thorough: true, debug: debugPhoto });
+      const refined = findDocument(cv, canvas, live?.quad ?? null);
+
+      const view = document.getElementById('view');
+      view.width = W; view.height = H;
+      const ctx = view.getContext('2d');
+      ctx.drawImage(canvas, 0, 0);
+      const lw = Math.max(W, H) / 300;
+      for (const c of [...debugLive, ...debugPhoto]) poly(ctx, c.quad, c.score ? 'rgba(255,200,0,.6)' : 'rgba(255,80,80,.35)', lw / 2);
+      if (live) poly(ctx, live.quad, '#ffd400', lw);
+      if (refined) poly(ctx, refined, '#00e676', lw);
+
+      const rows = [...debugLive.map((c) => ({ size: 400, ...c })), ...debugPhoto.map((c) => ({ size: 640, ...c }))];
+      document.querySelector('#cands tbody').innerHTML = rows.map((c) =>
+        `<tr><td>${c.size}</td><td>${c.from}</td><td>${c.mode}</td><td class="${c.score ? 'ok' : 'bad'}">${c.score.toFixed(3)}</td><td>${c.reason ?? ''}</td>` +
+        `<td>${c.area?.toFixed(2) ?? ''}</td><td>${c.support?.map((s) => s.toFixed(2)).join(' ') ?? ''}</td></tr>`).join('');
+
+      const img = document.getElementById('result');
+      if (refined) {
+        const page = await renderPage(cv, canvas, refined, 'enhanced');
+        img.src = URL.createObjectURL(page.blob);
+      } else {
+        img.removeAttribute('src');
+      }
+      status.textContent = `Live: ${live ? 'gefunden' : 'nichts'} · Foto: ${photo ? 'gefunden' : 'nichts'} · Ergebnis: ${refined ? 'zugeschnitten' : 'nichts'}`;
+      return { live: !!live, photo: !!photo, refined, candidates: rows.map(({ quad, ...r }) => r) };
+    };
+
+    document.getElementById('file').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (file) await window.analyze(await loadImageCanvas(file));
+    });
+  </script>
+</body>
+</html>

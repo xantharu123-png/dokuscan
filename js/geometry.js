@@ -72,6 +72,17 @@ export function defaultQuad(w, h, margin = 0.08) {
   ];
 }
 
+/** Abstand eines Punkts zum Rand des Vierecks – positiv innerhalb, negativ außerhalb. */
+export function insideDistance(p, q) {
+  return Math.min(...q.map((a, i) => {
+    const b = q[(i + 1) % 4];
+    return ((p.x - a.x) * -(b.y - a.y) + (p.y - a.y) * (b.x - a.x)) / dist(a, b);
+  }));
+}
+
+/** Liegt `inner` (bis auf `tol` Pixel) vollständig in `outer`? */
+export const encloses = (outer, inner, tol) => inner.every((p) => insideDistance(p, outer) >= -tol);
+
 /** Schnittpunkt zweier Geraden (Punkt p, Richtung u). */
 export function intersectLines(p1, u1, p2, u2) {
   const cross = u1.x * u2.y - u1.y * u2.x;

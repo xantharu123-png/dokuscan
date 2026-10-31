@@ -12,7 +12,7 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 /**
  * Öffnet den Editor für `image` (Canvas) mit Startviereck `quad`.
- * `onAuto` liefert ein automatisch erkanntes Viereck oder null.
+ * `onAuto(corners)` liefert ein automatisch erkanntes Viereck (ausgehend von den aktuellen Ecken) oder null.
  * Rückgabe: Promise mit dem neuen Viereck oder null bei Abbruch.
  */
 export function openEditor({ image, quad, onAuto }) {
@@ -215,7 +215,7 @@ export function openEditor({ image, quad, onAuto }) {
       draw();
     };
     document.getElementById('ed-auto').onclick = () => {
-      const q = onAuto?.();
+      const q = onAuto?.(corners);
       if (q) {
         corners = q;
         draw();
