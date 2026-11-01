@@ -36,22 +36,9 @@
       <div id="flash" class="flash"></div>
     </div>
 
-    <!-- Modus „iPhone-Kamera“: Fotos mit der eingebauten Kamera, ohne Kamera-Erlaubnis -->
-    <div id="cam-off" class="cam-off" hidden>
-      <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
-      <h2>iPhone-Kamera</h2>
-      <p>Fotografiere jede Seite mit der Kamera des iPhones. Die App schneidet das Blatt danach automatisch zu, und iOS fragt nicht nach der Kamera-Erlaubnis.</p>
-      <label class="btn btn-primary" for="photo-input">Seite fotografieren</label>
-      <input id="photo-input" type="file" accept="image/*" capture="environment" hidden>
-      <button id="btn-live-on" class="btn btn-ghost">Zur Live-Kamera mit grünem Rahmen</button>
-    </div>
-
     <div class="cam-top">
       <button id="btn-auto" class="pill is-on" aria-pressed="true">Auto</button>
       <p id="hint" class="hint">Dokument ins Bild halten</p>
-      <button id="btn-live-off" class="icon-btn" aria-label="iPhone-Kamera verwenden (ohne Nachfrage)">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
-      </button>
       <label class="icon-btn" for="file-input" aria-label="Foto importieren">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
       </label>
@@ -61,7 +48,6 @@
     <div id="cam-error" class="cam-error" hidden>
       <p id="cam-error-text"></p>
       <button id="btn-retry" class="btn btn-primary">Erneut versuchen</button>
-      <button id="btn-error-system" class="btn">iPhone-Kamera verwenden</button>
       <label class="btn" for="file-input">Foto auswählen</label>
     </div>
 

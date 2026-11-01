@@ -14,17 +14,8 @@ export class Camera {
   get width() { return this.video.videoWidth; }
   get height() { return this.video.videoHeight; }
 
-  /**
-   * Startet die Kamera oder setzt eine pausierte fort. iOS fragt bei jedem neuen Kamerazugriff
-   * erneut nach der Erlaubnis – deshalb wird ein laufender Zugriff wiederverwendet, solange er lebt.
-   */
   async start() {
-    if (this.stream?.getVideoTracks().every((t) => t.readyState === 'live')) {
-      this.stream.getTracks().forEach((t) => { t.enabled = true; });
-      await this.video.play().catch(() => {});
-      return;
-    }
-    this.stop();
+    if (this.stream) return;
     if (!navigator.mediaDevices?.getUserMedia) {
       const err = new Error('Kamera nicht verfügbar');
       err.name = 'InsecureContext';
@@ -40,12 +31,6 @@ export class Camera {
     });
     this.video.srcObject = this.stream;
     await this.video.play().catch(() => {});
-  }
-
-  /** Kamerabild anhalten, ohne den Zugriff aufzugeben (kein erneutes Nachfragen beim Fortsetzen). */
-  pause() {
-    this.stream?.getTracks().forEach((t) => { t.enabled = false; });
-    this.video.pause();
   }
 
   stop() {

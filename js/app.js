@@ -31,7 +31,6 @@ const state = {
   pages: [],
   filter: readPref('filter', 'enhanced'),
   auto: readPref('auto', 'true') === 'true',
-  liveCamera: readPref('live', 'true') === 'true', // false = iPhone-Kamera über die Fotoauswahl
   ink: readPref('ink', 'blau'),
   signature: null, // gespeicherte Unterschrift (Canvas)
   view: 'loading',
@@ -78,40 +77,15 @@ function showView(name) {
   for (const v of ['loading', 'camera', 'review']) $('view-' + v).classList.toggle('is-active', v === name);
   state.view = name;
   if (name === 'camera') {
-    enterCamera();
+    startCamera();
   } else {
     stopLoop();
-    camera.pause(); // Zugriff behalten: iOS würde beim Wiedereinschalten erneut um Erlaubnis fragen
+    camera.stop();
   }
   if (name === 'review') renderReview();
 }
 
 // ---------- Kamera und Live-Erkennung ----------
-
-/**
- * Kamera-Ansicht je nach Modus: Live-Kamera mit Erkennung (iOS fragt pro App-Start einmal nach
- * der Erlaubnis) oder iPhone-Kamera über die Fotoauswahl (keine Nachfrage, kein Live-Rahmen).
- */
-function enterCamera() {
-  $('view-camera').classList.toggle('system-camera', !state.liveCamera);
-  $('cam-off').hidden = state.liveCamera;
-  if (state.liveCamera) {
-    startCamera();
-  } else {
-    stopLoop();
-    camera.stop();
-    tracker.reset();
-    $('cam-error').hidden = true;
-    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-    $('hint').textContent = 'iPhone-Kamera';
-  }
-}
-
-function setLiveCamera(on) {
-  state.liveCamera = on;
-  writePref('live', on);
-  enterCamera();
-}
 
 async function startCamera() {
   $('cam-error').hidden = true;
@@ -548,8 +522,7 @@ async function onFilter(e) {
   updateCameraBar();
 }
 
-/** Fotos übernehmen. Mit `stay` bleibt die Kamera-Ansicht offen (nächste Seite fotografieren). */
-async function onImport(e, { stay = false } = {}) {
+async function onImport(e) {
   const files = [...e.target.files];
   e.target.value = '';
   if (!files.length) return;
@@ -566,9 +539,8 @@ async function onImport(e, { stay = false } = {}) {
     }
   }
   hideBusy();
-  if (added && stay) toast(`Seite ${state.pages.length} hinzugefügt`);
-  if (added && !stay) showView('review');
-  else if (state.view === 'camera' && state.liveCamera) startLoop();
+  if (added) showView('review');
+  else if (state.view === 'camera') startLoop();
 }
 
 // ---------- PDF ----------
@@ -665,10 +637,6 @@ function bindEvents() {
   $('btn-done').addEventListener('click', () => showView('review'));
   $('btn-retry').addEventListener('click', () => startCamera());
   $('file-input').addEventListener('change', onImport);
-  $('photo-input').addEventListener('change', (e) => onImport(e, { stay: true }));
-  $('btn-live-off').addEventListener('click', () => setLiveCamera(false));
-  $('btn-live-on').addEventListener('click', () => setLiveCamera(true));
-  $('btn-error-system').addEventListener('click', () => setLiveCamera(false));
   $('btn-back').addEventListener('click', () => showView('camera'));
   $('pages-grid').addEventListener('click', onPageAction);
   document.querySelector('.filter-bar').addEventListener('click', onFilter);
@@ -683,8 +651,8 @@ function bindEvents() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       stopLoop();
-      camera.pause();
-    } else if (state.view === 'camera' && state.liveCamera) {
+      camera.stop();
+    } else if (state.view === 'camera') {
       startCamera();
     }
   });
