@@ -68,7 +68,8 @@ Wird kein Dokument erkannt (z. B. bei manueller Aufnahme), öffnet sich der Ecke
 ## Gut zu wissen
 
 - Die Seiten bleiben nur erhalten, solange die App geöffnet ist. Erst das PDF erstellen und sichern, dann schließen.
-- Als Home-Bildschirm-App fragt iOS die Kameraerlaubnis manchmal bei jedem Start erneut.
+- **Kamera-Erlaubnis:** iOS merkt sich die Erlaubnis bei Web-Apps auf dem Home-Bildschirm nicht über einen Neustart hinweg und fragt deshalb bei jedem App-Start einmal nach. Das ist eine Grenze von iOS, die keine Web-App umgehen kann. Innerhalb einer Sitzung fragt DokuScan nur einmal: Die Kamera wird in der Seitenübersicht nur pausiert, nicht ausgeschaltet.
+- **Ganz ohne Nachfrage:** Oben in der Kamera-Ansicht auf das Kamera-Symbol tippen. Damit wechselt die App zur **iPhone-Kamera**: Jede Seite wird mit der eingebauten Kamera fotografiert und danach automatisch zugeschnitten. Dafür braucht iOS keine Erlaubnis, es fehlen aber der grüne Live-Rahmen und die automatische Auslösung. Die App merkt sich den gewählten Modus.
 - Nach einer Änderung an den Dateien einfach erneut hochladen. Die App holt sich die neue Version beim nächsten Start (eventuell zweimal öffnen).
 
 ## Am PC ausprobieren

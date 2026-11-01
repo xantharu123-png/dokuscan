@@ -223,6 +223,27 @@ button:disabled { opacity: 0.35; cursor: default; }
 }
 .cam-error p { margin: 0 0 8px; color: var(--muted); max-width: 340px; }
 
+.cam-off {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: calc(var(--safe-top) + 80px) 32px calc(var(--safe-bottom) + 140px);
+  text-align: center;
+  background: var(--bg);
+  color: var(--muted);
+}
+.cam-off h2 { margin: 0; font-size: 22px; color: var(--text); }
+.cam-off p { margin: 0 0 8px; max-width: 340px; }
+.cam-off .btn { min-width: 240px; }
+.cam-off .btn-ghost { font-weight: 500; }
+.view-camera.system-camera #btn-auto,
+.view-camera.system-camera #btn-live-off,
+.view-camera.system-camera .shutter { visibility: hidden; }
+
 /* ---------- Seitenübersicht ---------- */
 
 .view-review { background: var(--bg); }
