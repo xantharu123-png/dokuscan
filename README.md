@@ -71,6 +71,29 @@ Wird kein Dokument erkannt (z. B. bei manueller Aufnahme), öffnet sich der Ecke
 - Als Home-Bildschirm-App fragt iOS die Kameraerlaubnis manchmal bei jedem Start erneut.
 - Nach einer Änderung an den Dateien einfach erneut hochladen. Die App holt sich die neue Version beim nächsten Start (eventuell zweimal öffnen).
 
+## Als echte iPhone-App (TestFlight)
+
+Als Web-App auf dem Home-Bildschirm fragt iOS bei jedem Start nach der Kamera-Erlaubnis. Als echte App fragt iOS nur **einmal pro Installation**. Danach lässt sich die Erlaubnis unter Einstellungen › DokuScan ändern.
+
+Die App wird in der Cloud auf einem Mac gebaut (GitHub Actions, `.github/workflows/ios.yml`), einen eigenen Mac brauchst du nicht. Einmalig nötig:
+
+1. **Apple Developer Program** beitreten: [developer.apple.com/programs](https://developer.apple.com/programs/) (99 USD/CHF pro Jahr). Die Freischaltung kann bis zu 2 Tage dauern.
+2. **Team-ID** notieren: [developer.apple.com/account](https://developer.apple.com/account) › Mitgliedschaft (10 Zeichen).
+3. **Bundle-ID registrieren:** Certificates, Identifiers & Profiles › Identifiers › „+“ › App IDs › App. Als Beschreibung `DokuScan` eintragen und „Explicit“ wählen mit `io.github.xantharu123png.dokuscan`.
+4. **App anlegen** in [App Store Connect](https://appstoreconnect.apple.com) › Apps › „+“ › Neue App: Plattform iOS, Name `DokuScan` (falls vergeben, einen Zusatz anhängen), Sprache Deutsch, die Bundle-ID aus Schritt 3, SKU `dokuscan`.
+5. **API-Schlüssel erstellen:** App Store Connect › Benutzer und Zugriff › Integrationen › App Store Connect API › Team-Schlüssel › „+“. Name `GitHub`, Zugriff **Admin**. Notiere dir die **Issuer-ID** (oben) und die **Schlüssel-ID** und lade die `.p8`-Datei herunter. Das geht nur einmal.
+6. **Bei GitHub hinterlegen:** Repository › Settings › Secrets and variables › Actions › „New repository secret“:
+   - `APPLE_TEAM_ID`: Team-ID
+   - `ASC_KEY_ID`: Schlüssel-ID
+   - `ASC_ISSUER_ID`: Issuer-ID
+   - `ASC_KEY_P8`: kompletter Inhalt der `.p8`-Datei (mit Editor öffnen, alles kopieren, inklusive der BEGIN- und END-Zeile)
+7. **Bauen:** Actions › „iPhone-App“ › „Run workflow“. Etwa 15 bis 30 Minuten später erscheint der Build in App Store Connect unter TestFlight.
+8. **Installieren:** Die App **TestFlight** aus dem App Store laden. In App Store Connect › TestFlight › „Internes Testen“ dich selbst als Tester hinzufügen. Danach installierst du DokuScan über die Einladung in TestFlight.
+
+TestFlight-Builds laufen nach 90 Tagen ab. Davor einfach Schritt 7 wiederholen, TestFlight installiert die neue Version als Update, und die Kamera-Erlaubnis bleibt erhalten.
+
+Für Änderungen am iOS-Projekt: `npm install`, dann `npm run ios:sync` (stellt `www/` zusammen und überträgt es ins iOS-Projekt).
+
 ## Am PC ausprobieren
 
 ```
@@ -96,5 +119,7 @@ Danach `http://localhost:8765` im Browser öffnen. Am PC wird dabei die Webcam g
 | `sw.js`, `manifest.webmanifest` | Offline-Betrieb und Home-Bildschirm-App |
 | `icons/` | App-Symbol: Vorlage `icon.svg`, daraus erzeugt mit `node tools/make-icons.mjs` die PNGs |
 | `vendor/` | OpenCV.js 4.10 (Bilderkennung) und jsPDF 4.2 (PDF), jeweils mit Lizenz |
-| `tools/` | Icon-Erzeugung, lokaler Testserver |
+| `tools/` | Icon-Erzeugung, lokaler Testserver, `www/` für die iPhone-App zusammenstellen |
+| `ios/`, `capacitor.config.json`, `package.json` | iPhone-App (Capacitor) |
+| `.github/workflows/ios.yml` | Bauen in der Cloud, Signieren, Hochladen zu TestFlight |
 | `test/` | Erkennungstest |
