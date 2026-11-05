@@ -1,0 +1,22 @@
+{
+  "name": "dokuscan",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dokumente mit der iPhone-Kamera scannen und als PDF speichern",
+  "type": "module",
+  "scripts": {
+    "build:www": "node tools/build-www.mjs",
+    "ios:sync": "npm run build:www && npx cap sync ios",
+    "serve": "node tools/serve.mjs",
+    "icons": "node tools/make-icons.mjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/share": "8.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

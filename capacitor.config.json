@@ -1,0 +1,10 @@
+{
+  "appId": "io.github.xantharu123png.dokuscan",
+  "appName": "DokuScan",
+  "webDir": "www",
+  "backgroundColor": "#0b0d10",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0b0d10"
+  }
+}

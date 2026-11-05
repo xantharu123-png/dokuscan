@@ -6,7 +6,7 @@ import { detectQuad, findDocument, autoCorners } from './detect.js';
 import { renderPage, warpToCanvas, canvasToBlob, releaseCanvas, loadImageCanvas } from './process.js';
 import { defaultQuad } from './geometry.js';
 import { openEditor } from './editor.js';
-import { buildPdf, canShareFile, shareFile } from './pdf.js';
+import { buildPdf, canShareFile, shareFile, isNativeApp } from './pdf.js';
 import { INKS, loadSignature, saveSignature, deleteSignature, recolor, extractSignature, openSignaturePad } from './signature.js';
 import { openPlacement, toPageFrame, toViewFrame } from './placement.js';
 
@@ -574,6 +574,7 @@ async function makePdf() {
     $('btn-download').href = pdfUrl;
     $('btn-download').download = pdfFile.name;
     $('btn-share').hidden = !canShareFile(pdfFile);
+    $('btn-download').hidden = isNativeApp(); // in der App läuft alles über das Teilen-Menü
     $('export-sheet').hidden = false;
   } catch (err) {
     console.error(err);
@@ -587,7 +588,8 @@ async function onShare() {
   try {
     await shareFile(pdfFile);
   } catch (err) {
-    toast('Teilen nicht möglich – nutze „Herunterladen“.');
+    console.error(err);
+    toast(isNativeApp() ? 'Teilen nicht möglich: ' + err.message : 'Teilen nicht möglich – nutze „Herunterladen“.');
   }
 }
 
