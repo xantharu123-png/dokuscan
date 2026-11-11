@@ -100,7 +100,15 @@ Für Änderungen am iOS-Projekt: `npm install`, dann `npm run ios:sync` (stellt 
 node tools/serve.mjs
 ```
 
-Danach `http://localhost:8765` im Browser öffnen. Am PC wird dabei die Webcam genutzt. Unter `http://localhost:8765/test/detection.html` läuft ein automatischer Test der Dokumenterkennung mit künstlich erzeugten Fotos.
+Danach `http://localhost:8765` im Browser öffnen. Am PC wird dabei die Webcam genutzt. Unter `http://localhost:8765/test/detection.html` läuft ein automatischer Test der Dokumenterkennung mit künstlich erzeugten Fotos, unter `http://localhost:8765/test/photo.html` lassen sich eigene Fotos analysieren.
+
+Alle automatischen Tests (Erkennung, App-Ablauf mit simulierter Kamera, Unterschrift) laufen mit:
+
+```
+npm test
+```
+
+Für Entwickler und KI-Agenten: [`AGENTS.md`](AGENTS.md) (Arbeitsregeln) und [`docs/HANDOVER.md`](docs/HANDOVER.md) (vollständiger Projektstand).
 
 ## Aufbau
 
@@ -122,4 +130,5 @@ Danach `http://localhost:8765` im Browser öffnen. Am PC wird dabei die Webcam g
 | `tools/` | Icon-Erzeugung, lokaler Testserver, `www/` für die iPhone-App zusammenstellen |
 | `ios/`, `capacitor.config.json`, `package.json` | iPhone-App (Capacitor) |
 | `.github/workflows/ios.yml` | Bauen in der Cloud, Signieren, Hochladen zu TestFlight |
-| `test/` | Erkennungstest |
+| `test/` | Erkennungstest (`detection.html`), Foto-Analyse (`photo.html`), automatische Gesamttests (`e2e/`) |
+| `AGENTS.md`, `docs/HANDOVER.md` | Übergabe an Entwickler und KI-Agenten |

@@ -8,7 +8,11 @@
     "build:www": "node tools/build-www.mjs",
     "ios:sync": "npm run build:www && npx cap sync ios",
     "serve": "node tools/serve.mjs",
-    "icons": "node tools/make-icons.mjs"
+    "icons": "node tools/make-icons.mjs",
+    "test:detection": "node test/e2e/detection.mjs",
+    "test:app": "node test/e2e/app.mjs",
+    "test:signature": "node test/e2e/signature.mjs",
+    "test": "node test/e2e/detection.mjs && node test/e2e/app.mjs && node test/e2e/signature.mjs"
   },
   "dependencies": {
     "@capacitor/core": "8.5.3",
